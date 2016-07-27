@@ -76,7 +76,7 @@ func (gw *GowServer) RegisterHandler(r string, h http.Handler) {
 	gw.handlers[r] = h
 }
 
-func (gw *GowServer) RegisterControler(r string, c interface{}) {
+func (gw *GowServer) RegisterController(r string, c interface{}) {
 	r = "/" + strings.Trim(r, "/")
 	gw.controllers[r] = c
 }
@@ -109,7 +109,7 @@ func (gw *GowServer) handler(w http.ResponseWriter, r *http.Request) {
 		value_c.Elem().FieldByName("Params").Set(reflect.ValueOf(r.URL.Query()))
 		value_c.Elem().FieldByName("Response").FieldByName("Response").Set(reflect.ValueOf(w))
 
-		if exec_method := value_c.MethodByName(path[spi+1:] + "Action"); exec_method.Kind() == reflect.Func {
+		if exec_method := value_c.MethodByName(strings.Replace(strings.Title(path[spi+1:]), "-", "", -1) + "Action"); exec_method.Kind() == reflect.Func {
 			exec_method.Call([]reflect.Value{})
 			return
 		}
