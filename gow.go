@@ -129,6 +129,10 @@ type ResponseWriter struct {
 	Response http.ResponseWriter
 }
 
+func (c ResponseWriter) SetHeader(key, value string) {
+	c.Response.Header().Set(key, value)
+}
+
 func (c ResponseWriter) WriteHeader(h int) {
 	c.Response.WriteHeader(h)
 }
