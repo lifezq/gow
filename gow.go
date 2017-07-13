@@ -29,11 +29,13 @@ import (
 )
 
 type Config struct {
-	BaseUrl string
+	BaseUrl      string
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
 }
 
 type GowServer struct {
-	config      Config
+	config      *Config
 	handlers    map[string]http.Handler
 	controllers map[string]interface{}
 }
@@ -47,8 +49,11 @@ func New() *GowServer {
 }
 
 func (gw *GowServer) SetBaseUrl(u string) {
-
 	gw.config.BaseUrl = "/" + strings.Trim(u, "/")
+}
+
+func (gw *GowServer) SetConfig(cfg *Config) {
+	gw.config = cfg
 }
 
 func (gw *GowServer) Run(addr string) error {
@@ -61,11 +66,20 @@ func (gw *GowServer) Run(addr string) error {
 
 	serveMux.HandleFunc("/", gw.handler)
 
+	if len(gw.config.BaseUrl) < 1 {
+		gw.config.BaseUrl = "/"
+	}
+
+	if gw.config.ReadTimeout < 1 {
+		gw.config.ReadTimeout = 3 * time.Second
+		gw.config.WriteTimeout = 10 * time.Second
+	}
+
 	s := &http.Server{
 		Addr:           addr,
 		Handler:        serveMux,
-		ReadTimeout:    3 * time.Second,
-		WriteTimeout:   10 * time.Second,
+		ReadTimeout:    gw.config.ReadTimeout,
+		WriteTimeout:   gw.config.WriteTimeout,
 		MaxHeaderBytes: 1 << 20,
 	}
 
