@@ -137,6 +137,10 @@ func (c ResponseWriter) WriteHeader(h int) {
 	c.Response.WriteHeader(h)
 }
 
+func (c ResponseWriter) RenderBytes(b []byte) {
+	c.Response.Write(b)
+}
+
 func (c ResponseWriter) RenderString(s string) {
 	c.Response.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	c.Response.Write([]byte(s))
