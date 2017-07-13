@@ -72,6 +72,9 @@ func (gw *GowServer) Run(addr string) error {
 
 	if gw.config.ReadTimeout < 1 {
 		gw.config.ReadTimeout = 3 * time.Second
+	}
+
+	if gw.config.WriteTimeout < 1 {
 		gw.config.WriteTimeout = 10 * time.Second
 	}
 
