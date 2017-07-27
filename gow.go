@@ -25,6 +25,7 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -34,17 +35,23 @@ type Config struct {
 	WriteTimeout time.Duration
 }
 
+type registerController struct {
+	Name       string
+	Controller interface{}
+}
+
 type GowServer struct {
+	mux         sync.RWMutex
 	config      *Config
 	handlers    map[string]http.Handler
-	controllers map[string]interface{}
+	controllers []registerController
 }
 
 func New() *GowServer {
 
 	return &GowServer{
 		handlers:    make(map[string]http.Handler),
-		controllers: make(map[string]interface{}),
+		controllers: []registerController{},
 	}
 }
 
@@ -94,8 +101,10 @@ func (gw *GowServer) RegisterHandler(r string, h http.Handler) {
 }
 
 func (gw *GowServer) RegisterController(r string, c interface{}) {
-	r = "/" + strings.Trim(r, "/")
-	gw.controllers[r] = c
+	gw.controllers = append(gw.controllers, registerController{
+		Name:       "/" + strings.Trim(r, "/"),
+		Controller: c,
+	})
 }
 
 func (gw *GowServer) RegisterStaticRoute(r, path string) {
@@ -109,26 +118,39 @@ func (gw *GowServer) RegisterStaticRoute(r, path string) {
 
 func (gw *GowServer) handler(w http.ResponseWriter, r *http.Request) {
 
-	if r.URL.Path == "/favicon.ico" {
+	if r.URL.Path == "/favicon.ico" || len(r.URL.Path) < len(gw.config.BaseUrl) {
 		return
 	}
 
 	var (
-		path = r.URL.Path[len(gw.config.BaseUrl):]
+		path = strings.TrimRight(r.URL.Path[len(gw.config.BaseUrl):], "/")
 		spi  = strings.LastIndex(path, "/")
 	)
 
-	if controller, ok := gw.controllers[path[:spi]]; ok {
+	if spi == -1 {
+		return
+	}
 
-		value_c := reflect.ValueOf(controller)
+	for _, v := range gw.controllers {
 
-		value_c.Elem().FieldByName("Request").Set(reflect.ValueOf(r))
-		value_c.Elem().FieldByName("Params").Set(reflect.ValueOf(r.URL.Query()))
-		value_c.Elem().FieldByName("Response").FieldByName("Response").Set(reflect.ValueOf(w))
+		if v.Name == path[:spi] {
 
-		if exec_method := value_c.MethodByName(strings.Replace(strings.Title(path[spi+1:]), "-", "", -1) + "Action"); exec_method.Kind() == reflect.Func {
-			exec_method.Call([]reflect.Value{})
-			return
+			value_c := reflect.ValueOf(v.Controller)
+
+			value_c.Elem().FieldByName("Request").Set(reflect.ValueOf(r))
+			value_c.Elem().FieldByName("Params").Set(reflect.ValueOf(r.URL.Query()))
+			value_c.Elem().FieldByName("Response").FieldByName("Response").Set(reflect.ValueOf(w))
+
+			if exec_method := value_c.MethodByName(strings.Replace(strings.Title(path[spi+1:]),
+				"-", "", -1) + "Action"); exec_method.Kind() == reflect.Func {
+
+				gw.mux.Lock()
+				exec_method.Call([]reflect.Value{})
+				gw.mux.Unlock()
+				return
+			}
+
+			break
 		}
 	}
 
