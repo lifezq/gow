@@ -104,6 +104,13 @@ func (gw *GowServer) RegisterHandler(r string, h http.Handler) {
 }
 
 func (gw *GowServer) RegisterController(r string, c interface{}) {
+
+	if ctype := reflect.TypeOf(c); ctype.Kind() == reflect.Ptr {
+		if v := reflect.Indirect(reflect.ValueOf(c)); v.CanInterface() {
+			c = v.Interface()
+		}
+	}
+
 	gw.controllers = append(gw.controllers, registerController{
 		Name:       "/" + strings.Trim(r, "/"),
 		Controller: c,
@@ -138,12 +145,7 @@ func (gw *GowServer) handler(w http.ResponseWriter, r *http.Request) {
 
 		if v.Name == path[:spi] {
 
-			ctype := reflect.TypeOf(v.Controller)
-			if ctype.Kind() == reflect.Ptr {
-				ctype = reflect.Indirect(reflect.ValueOf(v.Controller)).Type()
-			}
-
-			value_c := reflect.New(ctype)
+			value_c := reflect.New(reflect.TypeOf(v.Controller))
 			value_c.Elem().FieldByName("Request").Set(reflect.ValueOf(r))
 			value_c.Elem().FieldByName("Params").Set(reflect.ValueOf(r.URL.Query()))
 			value_c.Elem().FieldByName("Response").FieldByName("Response").Set(reflect.ValueOf(w))
