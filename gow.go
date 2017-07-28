@@ -25,7 +25,6 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -41,7 +40,6 @@ type registerController struct {
 }
 
 type GowServer struct {
-	mux         sync.RWMutex
 	config      *Config
 	handlers    map[string]http.Handler
 	controllers []registerController
@@ -50,6 +48,11 @@ type GowServer struct {
 func New() *GowServer {
 
 	return &GowServer{
+		config: &Config{
+			BaseUrl:      "/",
+			ReadTimeout:  10 * time.Second,
+			WriteTimeout: 10 * time.Second,
+		},
 		handlers:    make(map[string]http.Handler),
 		controllers: []registerController{},
 	}
@@ -123,7 +126,7 @@ func (gw *GowServer) handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var (
-		path = strings.TrimRight(r.URL.Path[len(gw.config.BaseUrl):], "/")
+		path = "/" + strings.Trim(r.URL.Path[len(gw.config.BaseUrl):], "/")
 		spi  = strings.LastIndex(path, "/")
 	)
 
@@ -135,8 +138,12 @@ func (gw *GowServer) handler(w http.ResponseWriter, r *http.Request) {
 
 		if v.Name == path[:spi] {
 
-			value_c := reflect.ValueOf(v.Controller)
+			ctype := reflect.TypeOf(v.Controller)
+			if ctype.Kind() == reflect.Ptr {
+				ctype = reflect.Indirect(reflect.ValueOf(v.Controller)).Type()
+			}
 
+			value_c := reflect.New(ctype)
 			value_c.Elem().FieldByName("Request").Set(reflect.ValueOf(r))
 			value_c.Elem().FieldByName("Params").Set(reflect.ValueOf(r.URL.Query()))
 			value_c.Elem().FieldByName("Response").FieldByName("Response").Set(reflect.ValueOf(w))
@@ -144,9 +151,7 @@ func (gw *GowServer) handler(w http.ResponseWriter, r *http.Request) {
 			if exec_method := value_c.MethodByName(strings.Replace(strings.Title(path[spi+1:]),
 				"-", "", -1) + "Action"); exec_method.Kind() == reflect.Func {
 
-				gw.mux.Lock()
 				exec_method.Call([]reflect.Value{})
-				gw.mux.Unlock()
 				return
 			}
 
