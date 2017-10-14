@@ -128,7 +128,8 @@ func (gw *GowServer) RegisterStaticRoute(r, path string) {
 
 func (gw *GowServer) handler(w http.ResponseWriter, r *http.Request) {
 
-	if r.URL.Path == "/favicon.ico" || len(r.URL.Path) < len(gw.config.BaseUrl) {
+	if r.URL.Path == "/favicon.ico" || len(r.URL.Path) < len(gw.config.BaseUrl) ||
+		gw.config.BaseUrl != r.URL.Path[:len(gw.config.BaseUrl)] {
 		return
 	}
 
