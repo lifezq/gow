@@ -196,6 +196,19 @@ func (c ResponseWriter) RenderJson(v interface{}) {
 	c.Response.Header().Set("Content-Type", "application/json;charset=utf-8")
 
 	if jrsp, err := json.Marshal(&v); err == nil {
-		c.Response.Write([]byte(jrsp))
+		c.Response.Write(jrsp)
+	}
+}
+
+func (c ResponseWriter) RenderJsonCallback(v interface{}, callback string) {
+	c.Response.Header().Set("Content-Type", "application/json;charset=utf-8")
+
+	if jrsp, err := json.Marshal(&v); err == nil {
+
+		if callback != "" {
+			jrsp = []byte(callback + "(" + string(jrsp) + ")")
+		}
+
+		c.Response.Write(jrsp)
 	}
 }
