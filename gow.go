@@ -59,11 +59,12 @@ func New() *GowServer {
 }
 
 func (gw *GowServer) SetBaseUrl(u string) {
-	gw.config.BaseUrl = "/" + strings.Trim(u, "/")
+	gw.config.BaseUrl = "/" + strings.Trim(u, "/") + "/"
 }
 
 func (gw *GowServer) SetConfig(cfg *Config) {
 	gw.config = cfg
+	gw.SetBaseUrl(gw.config.BaseUrl)
 }
 
 func (gw *GowServer) Run(addr string) error {
@@ -74,11 +75,11 @@ func (gw *GowServer) Run(addr string) error {
 		serveMux.Handle(hs, hd)
 	}
 
-	serveMux.HandleFunc("/", gw.handler)
-
 	if len(gw.config.BaseUrl) < 1 {
 		gw.config.BaseUrl = "/"
 	}
+
+	serveMux.HandleFunc(gw.config.BaseUrl, gw.handler)
 
 	if gw.config.ReadTimeout < 1 {
 		gw.config.ReadTimeout = 3 * time.Second
