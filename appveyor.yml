@@ -6,6 +6,7 @@ clone_folder: c:\gopath\src\github.com\lifezq\gow
 
 environment:
   GOPATH: c:\gopath
+  CGO_ENABLED: 0
 
 install:
   - go version
